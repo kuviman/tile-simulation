@@ -1,9 +1,11 @@
-use macroquad::prelude::{is_mouse_button_pressed, mouse_position, MouseButton};
+use macroquad::prelude::{mouse_position, MouseButton};
 
 use super::*;
 
 impl Game {
     pub fn update(&mut self, delta_time: f32) {
+        self.current_fps = 1.0 / delta_time;
+
         if is_mouse_button_down(MouseButton::Left) {
             let tile_pos = self.mouse_tile_pos();
             self.tiles.insert(
