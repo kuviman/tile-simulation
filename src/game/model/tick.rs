@@ -29,7 +29,13 @@ impl Model {
         while !update_tiles.is_empty() {
             let mut next_update = HashSet::new();
             for &pos in &update_tiles {
-                self.can_move(pos, &mut moves, &mut cant_move, &mut next_update);
+                self.can_move(
+                    pos,
+                    &mut HashSet::new(),
+                    &mut moves,
+                    &mut cant_move,
+                    &mut next_update,
+                );
             }
 
             next_update.retain(|pos| {
@@ -52,6 +58,7 @@ impl Model {
     fn can_move(
         &self,
         position: IVec2,
+        check: &mut HashSet<IVec2>,
         moves: &mut HashMap<IVec2, IVec2>,
         cant_move: &mut HashSet<IVec2>,
         update_tiles: &mut HashSet<IVec2>,
@@ -59,7 +66,7 @@ impl Model {
         if moves.contains_key(&position) {
             return true;
         }
-        if cant_move.contains(&position) {
+        if !check.insert(position) || cant_move.contains(&position) {
             return false;
         }
 
@@ -68,7 +75,7 @@ impl Model {
                 let directions = tile.move_directions();
                 for direction in directions {
                     let target_pos = position + direction;
-                    if self.can_move(target_pos, moves, cant_move, update_tiles)
+                    if self.can_move(target_pos, check, moves, cant_move, update_tiles)
                         && !moves.values().any(|&move_to| move_to == target_pos)
                     {
                         moves.insert(position, target_pos);
