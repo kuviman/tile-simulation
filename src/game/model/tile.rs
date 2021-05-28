@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Tile {
     pub updated: bool,
+    pub needs_update: bool,
     pub position: IVec2,
     pub content: TileContent,
 }

@@ -19,11 +19,17 @@ async fn main() {
         game.update(delta_time);
         println!("update: {}ms", time.elapsed().as_millis());
         let time = Instant::now();
+        let mut frames = 0;
         while frame_time >= FIXED_DELTA_TIME {
             game.fixed_update(FIXED_DELTA_TIME);
             frame_time -= FIXED_DELTA_TIME;
+            frames += 1;
         }
-        println!("fixed_update: {}ms", time.elapsed().as_millis());
+        println!(
+            "fixed_update: {}ms / {}",
+            time.elapsed().as_millis(),
+            frames
+        );
         let time = Instant::now();
         game.draw();
         println!("draw: {}ms", time.elapsed().as_millis());

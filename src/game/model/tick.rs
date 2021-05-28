@@ -3,23 +3,30 @@ use std::collections::HashSet;
 
 impl Model {
     pub fn tick(&mut self) {
-        for (_, tile) in &mut self.tiles {
+        for tile in self.tiles.values_mut() {
             tile.updated = false;
         }
-        let moves = self.calc_movement();
-        self.movement(moves);
+
+        let (moves, cant_move) = self.calc_movement();
+
+        for pos in &cant_move {
+            let tile = self.tiles.get_mut(pos).unwrap();
+            tile.needs_update = false;
+        }
+
+        self.movement(&moves);
     }
 
-    fn calc_movement(&mut self) -> HashMap<IVec2, IVec2> {
+    fn calc_movement(&mut self) -> (HashMap<IVec2, IVec2>, HashSet<IVec2>) {
         let mut moves = HashMap::new();
         let mut cant_move = HashSet::new();
         for (&pos, tile) in &self.tiles {
-            if tile.updated {
+            if !tile.needs_update {
                 continue;
             }
             self.can_move(pos, &mut moves, &mut cant_move);
         }
-        moves
+        (moves, cant_move)
     }
 
     fn can_move(
@@ -36,14 +43,16 @@ impl Model {
         }
 
         if let Some(tile) = self.tiles.get(&position) {
-            let directions = tile.move_directions();
-            for direction in directions {
-                let target_pos = position + direction;
-                if self.can_move(target_pos, moves, cant_move)
-                    && !moves.values().any(|&move_to| move_to == target_pos)
-                {
-                    moves.insert(position, target_pos);
-                    return true;
+            if tile.needs_update {
+                let directions = tile.move_directions();
+                for direction in directions {
+                    let target_pos = position + direction;
+                    if self.can_move(target_pos, moves, cant_move)
+                        && !moves.values().any(|&move_to| move_to == target_pos)
+                    {
+                        moves.insert(position, target_pos);
+                        return true;
+                    }
                 }
             }
             cant_move.insert(position);
@@ -53,8 +62,8 @@ impl Model {
         }
     }
 
-    fn movement(&mut self, moves: HashMap<IVec2, IVec2>) {
-        for (&move_from, &move_to) in &moves {
+    fn movement(&mut self, moves: &HashMap<IVec2, IVec2>) {
+        for (&move_from, &move_to) in moves {
             self.move_tile(move_from, move_to, &moves);
         }
     }
@@ -65,7 +74,7 @@ impl Model {
             return;
         }
 
-        if let Some(_) = self.tiles.get(&move_to) {
+        if self.tiles.contains_key(&move_to) {
             let &next_move = moves.get(&move_to).unwrap();
             self.move_tile(move_to, next_move, moves);
         }

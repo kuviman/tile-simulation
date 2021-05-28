@@ -11,7 +11,7 @@ impl Renderer {
     pub fn new() -> Self {
         Self {
             game_camera: Camera2D {
-                offset: vec2(0.0, -0.75),
+                offset: vec2(0.0, -1.0),
                 zoom: vec2(0.01, 0.01 * screen_width() / screen_height()),
                 ..Default::default()
             },

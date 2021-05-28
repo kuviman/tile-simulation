@@ -29,6 +29,7 @@ impl Game {
                 tile_pos,
                 Tile {
                     updated: false,
+                    needs_update: true,
                     position: tile_pos,
                     content: TileContent::Solid {
                         tile_solid: TileSolid::Sand,
