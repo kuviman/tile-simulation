@@ -42,7 +42,7 @@ impl Game {
         self.model.tick();
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&self) {
         self.renderer.draw(&self.model);
     }
 

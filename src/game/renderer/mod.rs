@@ -20,7 +20,7 @@ impl Renderer {
             fps_update: 0.0,
         }
     }
-    
+
     pub fn update(&mut self, delta_time: f32) {
         self.fps_update -= delta_time;
         if self.fps_update <= 0.0 {
@@ -29,10 +29,10 @@ impl Renderer {
         }
     }
 
-    pub fn draw(&mut self, model: &Model) {
+    pub fn draw(&self, model: &Model) {
         clear_background(BLACK);
-        self.draw_game(model);
         self.draw_ui();
+        self.draw_game(model);
     }
 
     fn draw_game(&self, model: &Model) {
