@@ -20,12 +20,32 @@ impl Model {
     fn calc_movement(&mut self) -> (HashMap<IVec2, IVec2>, HashSet<IVec2>) {
         let mut moves = HashMap::new();
         let mut cant_move = HashSet::new();
-        for (&pos, tile) in &self.tiles {
-            if !tile.needs_update {
-                continue;
+        let mut update_tiles: HashSet<IVec2> = self
+            .tiles
+            .iter()
+            .filter_map(|(&pos, tile)| if tile.needs_update { Some(pos) } else { None })
+            .collect();
+
+        while !update_tiles.is_empty() {
+            let mut next_update = HashSet::new();
+            for &pos in &update_tiles {
+                self.can_move(pos, &mut moves, &mut cant_move, &mut next_update);
             }
-            self.can_move(pos, &mut moves, &mut cant_move);
+
+            next_update.retain(|pos| {
+                if let Some(tile) = self.tiles.get_mut(pos) {
+                    tile.needs_update = true;
+                    true
+                } else {
+                    false
+                }
+            });
+            for update_pos in &next_update {
+                cant_move.remove(update_pos);
+            }
+            update_tiles = next_update;
         }
+
         (moves, cant_move)
     }
 
@@ -34,6 +54,7 @@ impl Model {
         position: IVec2,
         moves: &mut HashMap<IVec2, IVec2>,
         cant_move: &mut HashSet<IVec2>,
+        update_tiles: &mut HashSet<IVec2>,
     ) -> bool {
         if moves.contains_key(&position) {
             return true;
@@ -47,10 +68,11 @@ impl Model {
                 let directions = tile.move_directions();
                 for direction in directions {
                     let target_pos = position + direction;
-                    if self.can_move(target_pos, moves, cant_move)
+                    if self.can_move(target_pos, moves, cant_move, update_tiles)
                         && !moves.values().any(|&move_to| move_to == target_pos)
                     {
                         moves.insert(position, target_pos);
+                        self.add_update_tiles_around(update_tiles, position, 1);
                         return true;
                     }
                 }
@@ -83,6 +105,20 @@ impl Model {
         tile.updated = true;
         if let Some(tile) = self.tiles.insert(move_to, tile) {
             panic!("Trying to move tile into another tile {:?}", tile);
+        }
+    }
+
+    fn add_update_tiles_around(
+        &self,
+        update_tiles: &mut HashSet<IVec2>,
+        position: IVec2,
+        square_radius: i32,
+    ) {
+        for dx in -square_radius..=square_radius {
+            for dy in -square_radius..=square_radius {
+                let pos = position + ivec2(dx, dy);
+                update_tiles.insert(pos);
+            }
         }
     }
 }

@@ -26,7 +26,7 @@ async fn main() {
             frames += 1;
         }
         println!(
-            "fixed_update: {}ms / {}",
+            "fixed_update: {}ms / {} frames",
             time.elapsed().as_millis(),
             frames
         );
