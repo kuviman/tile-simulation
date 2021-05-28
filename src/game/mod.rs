@@ -11,6 +11,8 @@ use tile::*;
 pub struct Game {
     game_camera: Camera2D,
     current_fps: f32,
+    fps_update_time: f32,
+    fps_update: f32,
     tiles: HashMap<IVec2, Tile>,
 }
 
@@ -22,7 +24,6 @@ impl Game {
                 zoom: vec2(0.01, 0.01 * screen_width() / screen_height()),
                 ..Default::default()
             },
-            current_fps: 0.0,
             tiles: {
                 let mut tiles = HashMap::new();
                 for x in -50..=50 {
@@ -40,6 +41,9 @@ impl Game {
                 }
                 tiles
             },
+            current_fps: 0.0,
+            fps_update_time: 0.5,
+            fps_update: 0.0,
         }
     }
 }

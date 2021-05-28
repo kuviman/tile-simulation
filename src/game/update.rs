@@ -4,7 +4,11 @@ use super::*;
 
 impl Game {
     pub fn update(&mut self, delta_time: f32) {
-        self.current_fps = 1.0 / delta_time;
+        self.fps_update -= delta_time;
+        if self.fps_update <= 0.0 {
+            self.fps_update += self.fps_update_time;
+            self.current_fps = 1.0 / delta_time;
+        }
 
         if is_mouse_button_down(MouseButton::Left) {
             let tile_pos = self.mouse_tile_pos();
