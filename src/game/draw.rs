@@ -1,10 +1,8 @@
-use macroquad::color::colors;
-
 use super::*;
 
 impl Game {
     pub fn draw(&self) {
-        clear_background(colors::BLACK);
+        clear_background(BLACK);
         self.draw_game();
         self.draw_ui();
     }
@@ -24,7 +22,7 @@ impl Game {
             10.0,
             20.0,
             20.0,
-            colors::WHITE,
+            WHITE,
         );
     }
 }
@@ -32,14 +30,14 @@ impl Game {
 fn tile_color(tile: &Tile) -> Color {
     match &tile.content {
         TileContent::Solid { tile_solid } => match tile_solid {
-            TileSolid::Sand => colors::GOLD,
-            TileSolid::Barrier => colors::WHITE,
+            TileSolid::Sand => GOLD,
+            TileSolid::Barrier => WHITE,
         },
         TileContent::Liquid { tile_liquid } => match tile_liquid {
-            TileLiquid::Water => colors::BLUE,
+            TileLiquid::Water => BLUE,
         },
         TileContent::Gas { tile_gas } => match tile_gas {
-            TileGas::Smoke => colors::LIGHTGRAY,
+            TileGas::Smoke => LIGHTGRAY,
         },
     }
 }

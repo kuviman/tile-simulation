@@ -1,4 +1,5 @@
-use macroquad::prelude::{get_frame_time, next_frame};
+use macroquad::prelude::*;
+use std::time::Instant;
 
 mod game;
 
@@ -11,14 +12,19 @@ async fn main() {
     let mut game = Game::new();
     let mut frame_time = 0.0;
     loop {
+        println!("---- next frame ----");
+        let time = Instant::now();
         let delta_time = get_frame_time();
         frame_time += delta_time;
         game.update(delta_time);
+        println!("update: {}ms", time.elapsed().as_millis());
         while frame_time >= FIXED_DELTA_TIME {
             game.fixed_update(FIXED_DELTA_TIME);
             frame_time -= FIXED_DELTA_TIME;
         }
+        println!("fixed_update: {}ms", time.elapsed().as_millis());
         game.draw();
+        println!("draw: {}ms", time.elapsed().as_millis());
         next_frame().await;
     }
 }
