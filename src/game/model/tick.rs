@@ -1,9 +1,8 @@
+use super::*;
 use std::collections::HashSet;
 
-use super::*;
-
-impl Game {
-    pub fn fixed_update(&mut self, delta_time: f32) {
+impl Model {
+    pub fn tick(&mut self) {
         for (_, tile) in &mut self.tiles {
             tile.updated = false;
         }
