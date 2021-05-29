@@ -98,8 +98,20 @@ impl Model {
                 self.tiles.remove(&tile_pos);
             }
         }
+        self.update_tiles(tile_pos, 1);
     }
     pub fn get_update_view(&mut self) -> UpdateView {
         std::mem::take(&mut self.update_view)
+    }
+
+    fn update_tiles(&mut self, position: IVec2, square_distance: i32) {
+        for dx in -square_distance..=square_distance {
+            for dy in -square_distance..=square_distance {
+                let position = position + ivec2(dx, dy);
+                if let Some(tile) = self.tiles.get_mut(&position) {
+                    tile.needs_update = true;
+                }
+            }
+        }
     }
 }
