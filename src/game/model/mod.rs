@@ -2,16 +2,19 @@ use super::*;
 
 mod tick;
 mod tile;
+mod update_view;
 
 pub use tile::*;
+pub use update_view::*;
 
 pub struct Model {
-    pub tiles: HashMap<IVec2, Tile>,
+    tiles: HashMap<IVec2, Tile>,
+    update_view: UpdateView,
 }
 
 impl Model {
     pub fn new() -> Self {
-        Self {
+        let mut model = Self {
             tiles: {
                 let mut tiles = HashMap::new();
                 for x in -100..100 {
@@ -56,6 +59,31 @@ impl Model {
                 }
                 tiles
             },
+            update_view: UpdateView::default(),
+        };
+        model
+            .update_view
+            .update_view(model.tiles.iter().map(|(pos, tile)| (pos, Some(tile))));
+        model
+    }
+    pub fn set_tile(&mut self, tile_pos: IVec2, tile: Option<Tile>) {
+        self.update_view.update_tile(tile_pos, tile.clone());
+        match tile {
+            Some(tile) => {
+                self.tiles.insert(
+                    tile_pos,
+                    Tile {
+                        position: tile_pos,
+                        ..tile
+                    },
+                );
+            }
+            None => {
+                self.tiles.remove(&tile_pos);
+            }
         }
+    }
+    pub fn get_update_view(&mut self) -> UpdateView {
+        std::mem::take(&mut self.update_view)
     }
 }

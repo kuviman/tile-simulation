@@ -14,6 +14,13 @@ impl Model {
             tile.needs_update = false;
         }
 
+        for (&move_from, &move_to) in &moves {
+            self.update_view.update_tile(move_to, self.tiles.get(&move_from).cloned());
+            if !moves.values().any(|move_to| *move_to == move_from) {
+                self.update_view.update_tile(move_from, None);
+            }
+        }
+
         self.movement(&moves);
     }
 

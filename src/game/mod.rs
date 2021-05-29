@@ -27,20 +27,7 @@ impl Game {
 
         if is_mouse_button_down(MouseButton::Left) {
             let tile_pos = self.mouse_tile_pos();
-            match &self.selected_tile {
-                Some(tile) => {
-                    self.model.tiles.insert(
-                        tile_pos,
-                        Tile {
-                            position: tile_pos,
-                            ..tile.clone()
-                        },
-                    );
-                }
-                None => {
-                    self.model.tiles.remove(&tile_pos);
-                }
-            }
+            self.model.set_tile(tile_pos, self.selected_tile.clone());
         }
 
         if let Some(tile_content) = if is_key_down(KeyCode::Key1) {
@@ -78,8 +65,8 @@ impl Game {
         self.model.tick();
     }
 
-    pub fn draw(&self) {
-        self.renderer.draw(&self.model);
+    pub fn draw(&mut self) {
+        self.renderer.draw(self.model.get_update_view());
     }
 
     fn mouse_tile_pos(&self) -> IVec2 {
