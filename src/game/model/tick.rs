@@ -7,25 +7,32 @@ impl Model {
             tile.updated = false;
         }
 
+        let time = Instant::now();
         let (moves, cant_move) = self.calc_movement();
+        println!("calculate: {}", time.elapsed().as_millis());
 
+        let time = Instant::now();
+        self.movement(&moves);
+        println!("movement: {}", time.elapsed().as_millis());
+
+        let time = Instant::now();
         for pos in &cant_move {
             let tile = self.tiles.get_mut(pos).unwrap();
             tile.needs_update = false;
         }
 
         for (&move_from, &move_to) in &moves {
-            self.update_view.update_tile(move_to, self.tiles.get(&move_from).cloned());
-            if !moves.values().any(|move_to| *move_to == move_from) {
-                self.update_view.update_tile(move_from, None);
-            }
+            self.update_view
+                .update_tile(move_from, self.tiles.get(&move_from).cloned());
+            self.update_view
+                .update_tile(move_to, self.tiles.get(&move_to).cloned());
         }
-
-        self.movement(&moves);
+        println!("update tiles: {}", time.elapsed().as_millis());
     }
 
     fn calc_movement(&mut self) -> (HashMap<IVec2, IVec2>, HashSet<IVec2>) {
         let mut moves = HashMap::new();
+        let mut moves_to = HashSet::new();
         let mut cant_move = HashSet::new();
         let mut update_tiles: HashSet<IVec2> = self
             .tiles
@@ -40,6 +47,7 @@ impl Model {
                     pos,
                     &mut HashSet::new(),
                     &mut moves,
+                    &mut moves_to,
                     &mut cant_move,
                     &mut next_update,
                 );
@@ -67,6 +75,7 @@ impl Model {
         position: IVec2,
         check: &mut HashSet<IVec2>,
         moves: &mut HashMap<IVec2, IVec2>,
+        moves_to: &mut HashSet<IVec2>,
         cant_move: &mut HashSet<IVec2>,
         update_tiles: &mut HashSet<IVec2>,
     ) -> bool {
@@ -82,10 +91,11 @@ impl Model {
                 let directions = tile.move_directions();
                 for direction in directions {
                     let target_pos = position + direction;
-                    if self.can_move(target_pos, check, moves, cant_move, update_tiles)
-                        && !moves.values().any(|&move_to| move_to == target_pos)
+                    if self.can_move(target_pos, check, moves, moves_to, cant_move, update_tiles)
+                        && !moves_to.contains(&target_pos)
                     {
                         moves.insert(position, target_pos);
+                        moves_to.insert(target_pos);
                         self.add_update_tiles_around(update_tiles, position, 1);
                         return true;
                     }
