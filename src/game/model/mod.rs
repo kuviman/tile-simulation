@@ -57,22 +57,6 @@ impl Model {
                         },
                     );
                 }
-                for y in 25..50 {
-                    for x in -99..99 {
-                        let position = ivec2(x, y);
-                        tiles.insert(
-                            position,
-                            Tile {
-                                updated: true,
-                                needs_update: true,
-                                position,
-                                content: TileContent::Solid {
-                                    tile_solid: TileSolid::Sand,
-                                },
-                            },
-                        );
-                    }
-                }
                 tiles
             },
             update_view: UpdateView::default(),
