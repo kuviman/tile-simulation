@@ -1,5 +1,5 @@
 use super::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 mod model;
 mod renderer;
@@ -27,7 +27,7 @@ impl Game {
 
         if is_mouse_button_down(MouseButton::Left) {
             let tile_pos = self.mouse_tile_pos();
-            self.model.set_tile(tile_pos, self.selected_tile.clone());
+            self.model.change_tile(tile_pos, self.selected_tile.clone());
         }
 
         if let Some(tile_content) = if is_key_down(KeyCode::Key1) {
