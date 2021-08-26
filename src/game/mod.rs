@@ -1,78 +1,72 @@
-use super::*;
+use macroquad::prelude::{ivec2, IVec2};
 use std::collections::HashMap;
 
-mod model;
-mod renderer;
+use crate::{
+    constants::{CHUNK_SIZE_X, CHUNK_SIZE_Y},
+    update_view::UpdateView,
+};
 
-use model::*;
-use renderer::*;
+mod chunk;
+mod renderer;
+mod tick;
+
+use chunk::{tile_index_to_position, Chunk};
+use renderer::Renderer;
 
 pub struct Game {
+    chunks: HashMap<IVec2, Chunk>,
     renderer: Renderer,
-    model: Model,
-    selected_tile: Option<Tile>,
+    update_view: UpdateView,
 }
 
 impl Game {
     pub fn new() -> Self {
-        Self {
+        let mut game = Self {
+            chunks: {
+                let mut chunks = HashMap::new();
+                for x in -2..=2 {
+                    for y in -2..=2 {
+                        let pos = ivec2(x, y);
+                        let mut chunk = Chunk::empty();
+                        for tile in 300..625 {
+                            chunk.set_tile(tile);
+                        }
+                        chunks.insert(pos, chunk);
+                    }
+                }
+                chunks
+            },
             renderer: Renderer::new(),
-            model: Model::new(),
-            selected_tile: None,
-        }
+            update_view: UpdateView::default(),
+        };
+
+        game.update_view.update_view(
+            game.chunks
+                .iter()
+                .map(|(&chunk_pos, chunk)| {
+                    chunk.tiles().map(move |(index, &tile)| {
+                        (
+                            tile_index_to_position(index)
+                                + chunk_pos * ivec2(CHUNK_SIZE_X as i32, CHUNK_SIZE_Y as i32),
+                            tile,
+                        )
+                    })
+                })
+                .flatten(),
+        );
+
+        game
     }
 
     pub fn update(&mut self, delta_time: f32) {
         self.renderer.update(delta_time);
-
-        if is_mouse_button_down(MouseButton::Left) {
-            let tile_pos = self.mouse_tile_pos();
-            self.model.set_tile(tile_pos, self.selected_tile.clone());
-        }
-
-        if let Some(tile_content) = if is_key_down(KeyCode::Key1) {
-            self.selected_tile = None;
-            None
-        } else if is_key_down(KeyCode::Key2) {
-            Some(TileContent::Solid {
-                tile_solid: TileSolid::Barrier,
-            })
-        } else if is_key_down(KeyCode::Key3) {
-            Some(TileContent::Solid {
-                tile_solid: TileSolid::Sand,
-            })
-        } else if is_key_down(KeyCode::Key4) {
-            Some(TileContent::Liquid {
-                tile_liquid: TileLiquid::Water,
-            })
-        } else if is_key_down(KeyCode::Key5) {
-            Some(TileContent::Gas {
-                tile_gas: TileGas::Smoke,
-            })
-        } else {
-            None
-        } {
-            self.selected_tile = Some(Tile {
-                updated: false,
-                needs_update: true,
-                position: IVec2::ZERO,
-                content: tile_content,
-            })
-        }
     }
 
     pub fn fixed_update(&mut self, _delta_time: f32) {
-        self.model.tick();
+        self.tick();
     }
 
     pub fn draw(&mut self) {
-        self.renderer.draw(self.model.get_update_view());
-    }
-
-    fn mouse_tile_pos(&self) -> IVec2 {
-        let mouse_pos = mouse_position();
-        let mouse_pos = vec2(mouse_pos.0, mouse_pos.1);
-        let world_pos = self.renderer.game_camera.screen_to_world(mouse_pos);
-        ivec2(world_pos.x.floor() as i32, world_pos.y.floor() as i32)
+        self.renderer.draw(std::mem::take(&mut self.update_view));
     }
 }

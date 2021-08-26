@@ -1,38 +1,42 @@
 use macroquad::prelude::*;
-use std::time::Instant;
 
+mod constants;
 mod game;
+mod update_view;
 
-use game::*;
+use game::Game;
 
-const FIXED_DELTA_TIME: f32 = 1.0 / 60.0;
+const FIXED_DELTA_TIME: f32 = 1.0 / 30.0;
+const MIN_UPDATES_PER_FRAME: usize = 1;
+const MAX_UPDATES_PER_FRAME: usize = 1;
 
-#[macroquad::main("Tile Simulation")]
+#[macroquad::main("Tile Physics")]
 async fn main() {
+    assert!(MIN_UPDATES_PER_FRAME <= MAX_UPDATES_PER_FRAME);
+
     let mut game = Game::new();
     let mut frame_time = 0.0;
+    let mut paused = true;
     loop {
-        println!("---- next frame ----");
-        let delta_time = get_frame_time();
-        frame_time += delta_time;
-        let time = Instant::now();
-        game.update(delta_time);
-        println!("update: {}ms", time.elapsed().as_millis());
-        let time = Instant::now();
-        let mut frames = 0;
-        while frame_time >= FIXED_DELTA_TIME {
-            game.fixed_update(FIXED_DELTA_TIME);
-            frame_time -= FIXED_DELTA_TIME;
-            frames += 1;
+        if is_key_pressed(KeyCode::P) {
+            paused = !paused;
         }
-        println!(
-            "fixed_update: {}ms / {} frames",
-            time.elapsed().as_millis(),
-            frames
-        );
-        let time = Instant::now();
+
+        if !paused || is_key_pressed(KeyCode::Space) {
+            let delta_time = get_frame_time();
+            frame_time += delta_time;
+            game.update(delta_time);
+            let mut updates = 0;
+            while updates < MIN_UPDATES_PER_FRAME
+                || frame_time >= FIXED_DELTA_TIME && updates < MAX_UPDATES_PER_FRAME
+            {
+                game.fixed_update(FIXED_DELTA_TIME);
+                frame_time -= FIXED_DELTA_TIME;
+                updates += 1;
+            }
+        }
+
         game.draw();
-        println!("draw: {}ms", time.elapsed().as_millis());
         next_frame().await;
     }
 }
