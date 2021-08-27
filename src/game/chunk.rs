@@ -1,5 +1,4 @@
 use macroquad::prelude::{ivec2, uvec2, IVec2, UVec2};
-use std::collections::HashMap;
 
 use crate::constants::{CHUNK_SIZE, CHUNK_SIZE_X, CHUNK_SIZE_Y};
 
@@ -26,8 +25,8 @@ pub fn tile_position_to_index(tile_position: UVec2) -> usize {
 }
 
 pub struct Chunk {
-    tiles: DataArray<bool>,
-    need_update: DataArray<bool>,
+    pub tiles: DataArray<bool>,
+    pub need_update: DataArray<bool>,
 }
 
 impl Chunk {
@@ -47,10 +46,10 @@ impl Chunk {
         self.need_update[index] = true;
     }
 
-    pub fn start_calculation(&mut self) -> MovementCalculation {
-        let mut calculation = MovementCalculation {
+    pub fn start_calculation(&mut self) -> InitialCalculation {
+        let mut calculation = InitialCalculation {
             checked: data_array(false),
-            moves: HashMap::new(),
+            moves: data_array(None),
             moves_to: data_array(false),
             cant_move: data_array(false),
             update_tiles: {
@@ -73,21 +72,21 @@ impl Chunk {
 
         while !calculation.update_tiles.is_empty() {
             let update_index = calculation.update_tiles.remove(0);
-            self.update_move(update_index, &mut calculation);
+            self.start_move(update_index, &mut calculation);
         }
 
         calculation
     }
 
-    fn update_move(
+    fn start_move(
         &mut self,
         update_index: usize,
-        calculation: &mut MovementCalculation,
+        calculation: &mut InitialCalculation,
     ) -> MoveInfo {
         // If there is no tile
         // or we've calculated that this tile can move,
         // then movement is allowed
-        if !self.tiles[update_index] || calculation.moves.contains_key(&update_index) {
+        if !self.tiles[update_index] || calculation.moves[update_index].is_some() {
             return MoveInfo::Possible;
         }
 
@@ -114,11 +113,11 @@ impl Chunk {
             match Self::shift_position(update_index, direction) {
                 Ok(target_index) => {
                     // Inside the current chunk -> check if movement is possible
-                    match self.update_move(target_index, calculation) {
+                    match self.start_move(target_index, calculation) {
                         MoveInfo::Impossible => (),
                         MoveInfo::Possible => {
                             // Register the move
-                            calculation.moves.insert(update_index, target_index);
+                            calculation.moves[update_index] = Some(target_index);
                             calculation.moves_to[target_index] = true;
 
                             // Update view
@@ -140,7 +139,7 @@ impl Chunk {
                         }
                     }
                 }
-                Err((chunk_shift, tile_index)) => {
+                Err(_) => {
                     // Outside of the current chunk -> behaviour is unknown
                     calculation.unknown[update_index] = true;
                     return MoveInfo::Unknown;
@@ -159,7 +158,7 @@ impl Chunk {
         &self,
         index: usize,
         distance: i32,
-        calculation: &mut MovementCalculation,
+        calculation: &mut InitialCalculation,
     ) {
         // Update tiles in a square around a given tile
         for dx in -distance..=distance {
@@ -185,7 +184,7 @@ impl Chunk {
         }
     }
 
-    fn shift_position(tile_index: usize, shift: IVec2) -> Result<usize, (IVec2, usize)> {
+    pub fn shift_position(tile_index: usize, shift: IVec2) -> Result<usize, (IVec2, usize)> {
         // Translate tile index into a vector
         let position = tile_index_to_position(tile_index) + shift;
 
@@ -220,9 +219,13 @@ impl Chunk {
         }
     }
 
-    pub fn start_movement(&mut self, moves: HashMap<usize, usize>) {
+    pub fn start_movement(&mut self, moves: DataArray<Option<usize>>) {
         let mut updated = data_array(false);
-        for (&move_from, &move_to) in &moves {
+        for (move_from, move_to) in moves
+            .iter()
+            .enumerate()
+            .filter_map(|(move_from, move_to)| move_to.map(|move_to| (move_from, move_to)))
+        {
             self.move_tile(move_from, move_to, &moves, &mut updated);
         }
     }
@@ -231,7 +234,7 @@ impl Chunk {
         &mut self,
         move_from: usize,
         move_to: usize,
-        moves: &HashMap<usize, usize>,
+        moves: &DataArray<Option<usize>>,
         updated: &mut DataArray<bool>,
     ) {
         if updated[move_from] {
@@ -239,14 +242,9 @@ impl Chunk {
         }
 
         if self.tiles[move_to] {
-            let next_move = moves[&move_to];
+            let next_move = moves[move_to].unwrap();
             self.move_tile(move_to, next_move, &moves, updated);
         }
-
-        assert!(
-            !self.tiles[move_to],
-            "Trying to move a tile into another tile!"
-        );
 
         self.tiles[move_from] = false;
         updated[move_from] = true;
@@ -254,9 +252,15 @@ impl Chunk {
     }
 }
 
-pub struct MovementCalculation {
+pub enum MoveInfo {
+    Impossible,
+    Possible,
+    Unknown,
+}
+
+pub struct InitialCalculation {
     pub checked: DataArray<bool>,
-    pub moves: HashMap<usize, usize>,
+    pub moves: DataArray<Option<usize>>,
     pub moves_to: DataArray<bool>,
     pub cant_move: DataArray<bool>,
     pub update_tiles: Vec<usize>,
@@ -265,8 +269,10 @@ pub struct MovementCalculation {
     pub view_update: DataArray<Option<bool>>,
 }
 
-pub enum MoveInfo {
-    Impossible,
-    Possible,
-    Unknown,
+pub struct UpdatedCalculation {
+    pub checked: DataArray<bool>,
+    pub moves: DataArray<Option<usize>>,
+    pub moves_to: DataArray<bool>,
+    pub cant_move: DataArray<bool>,
+    pub view_update: DataArray<Option<bool>>,
 }

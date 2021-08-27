@@ -24,11 +24,12 @@ impl Game {
         let mut game = Self {
             chunks: {
                 let mut chunks = HashMap::new();
-                for x in -2..=2 {
-                    for y in -2..=2 {
+                const CHUNKS: i32 = 1;
+                for x in -CHUNKS..=CHUNKS {
+                    for y in 0..=CHUNKS * 2 + 1 {
                         let pos = ivec2(x, y);
                         let mut chunk = Chunk::empty();
-                        for tile in 300..625 {
+                        for tile in 0..100 {
                             chunk.set_tile(tile);
                         }
                         chunks.insert(pos, chunk);
