@@ -36,7 +36,10 @@ impl Renderer {
 
     pub fn draw(&mut self, view: UpdateView) {
         set_camera(&self.game_camera);
+        self.draw_game(view);
+    }
 
+    fn draw_game(&mut self, view: UpdateView) {
         // let offset = self.game_camera.world_to_screen(vec2(0.0, 0.0));
         // let offset = ivec2(offset.x as i32, offset.y as i32);
         let offset = ivec2(self.image.width as i32 / 2, 0);

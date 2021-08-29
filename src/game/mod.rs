@@ -26,10 +26,10 @@ impl Game {
                 let mut chunks = HashMap::new();
                 const CHUNKS: i32 = 1;
                 for x in -CHUNKS..=CHUNKS {
-                    for y in 0..=CHUNKS * 2 + 1 {
+                    for y in 0..=CHUNKS * 2 {
                         let pos = ivec2(x, y);
                         let mut chunk = Chunk::empty();
-                        for tile in 0..100 {
+                        for tile in 0..500 {
                             chunk.set_tile(tile);
                         }
                         chunks.insert(pos, chunk);
