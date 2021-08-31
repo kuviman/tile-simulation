@@ -1,6 +1,10 @@
+use std::{collections::HashMap, sync::Mutex};
+
 use macroquad::prelude::{ivec2, uvec2, IVec2, UVec2};
 
 use crate::constants::{CHUNK_SIZE, CHUNK_SIZE_X, CHUNK_SIZE_Y};
+
+use super::{calculator::Calculator, tile::Tile};
 
 pub type DataArray<T> = [T; CHUNK_SIZE];
 
@@ -25,13 +29,15 @@ pub fn tile_position_to_index(tile_position: UVec2) -> usize {
 }
 
 pub struct Chunk {
+    pub chunk_pos: IVec2,
     pub tiles: DataArray<bool>,
     pub need_update: DataArray<bool>,
 }
 
 impl Chunk {
-    pub fn empty() -> Self {
+    pub fn empty(chunk_pos: IVec2) -> Self {
         Self {
+            chunk_pos,
             tiles: data_array(false),
             need_update: data_array(false),
         }
@@ -46,43 +52,89 @@ impl Chunk {
         self.need_update[index] = true;
     }
 
-    pub fn start_calculation(&mut self) -> InitialCalculation {
-        let mut calculation = InitialCalculation {
+    pub fn calculate(&mut self, calculator: &Mutex<Calculator>) -> ChunkCalculation {
+        println!("Calculating");
+        let mut calculation = ChunkCalculation {
             checked: data_array(false),
             moves: data_array(None),
             moves_to: data_array(false),
-            cant_move: data_array(false),
             update_tiles: {
                 let mut update_tiles = Vec::new();
-                for index in 0..self.need_update.len() {
-                    if self.need_update[index] {
-                        if self.tiles[index] {
-                            update_tiles.push(index);
-                        } else {
-                            self.need_update[index] = false;
-                        }
-                    }
-                }
+                // for index in 0..self.need_update.len() {
+                //     if self.need_update[index] {
+                //         if self.tiles[index] {
+                //             update_tiles.push(index);
+                //         } else {
+                //             self.need_update[index] = false;
+                //         }
+                //     }
+                // }
                 update_tiles
             },
             unknown: data_array(false),
-            extra_updates: Vec::new(),
             view_update: data_array(None),
+            cross_moves: data_array(None),
         };
 
-        while !calculation.update_tiles.is_empty() {
-            let update_index = calculation.update_tiles.remove(0);
-            self.start_move(update_index, &mut calculation);
-        }
+        // let mut dependencies = HashMap::new();
+        // let mut is_done = false;
+        // // Calculate all tiles in the chunk
+        // while !is_done {
+        //     // Clear unknowns
+        //     for unknown_tile in calculation
+        //         .unknown
+        //         .iter_mut()
+        //         .filter(|tile| **tile)
+        //         .enumerate()
+        //         .map(|(index, unknown_tile)| {
+        //             *unknown_tile = false;
+        //             index
+        //         })
+        //     {
+        //         calculation.update_tiles.push(unknown_tile);
+        //     }
 
+        //     // Calculate tiles
+        //     let mut chunk_updates = data_array(None);
+        //     let mut extra_updates = Vec::new();
+        //     // while !calculation.update_tiles.is_empty() {
+        //     //     let update_index = calculation.update_tiles.remove(0);
+        //     //     let move_info = self.calculate_tile(
+        //     //         update_index,
+        //     //         &mut calculation,
+        //     //         &mut extra_updates,
+        //     //         &mut dependencies,
+        //     //     );
+        //     //     chunk_updates[update_index] = Some(move_info);
+        //     // }
+
+        //     // Update knowledge about other chunks
+        //     let mut calculator = calculator.lock().unwrap();
+        //     if let Some(updates) = calculator.update(
+        //         self.chunk_pos,
+        //         chunk_updates,
+        //         extra_updates,
+        //         &mut dependencies,
+        //     ) {
+        //         for (update_index, _) in updates.iter().map(|&update| update).enumerate() {
+        //             calculation.update_tiles.push(update_index);
+        //         }
+        //     }
+        //     is_done = calculator.is_done();
+        // }
+
+        println!("Returning value");
         calculation
     }
 
-    fn start_move(
+    fn calculate_tile(
         &mut self,
         update_index: usize,
-        calculation: &mut InitialCalculation,
+        calculation: &mut ChunkCalculation,
+        extra_updates: &mut Vec<Tile>,
+        dependencies: &mut HashMap<Tile, MoveInfo>,
     ) -> MoveInfo {
+        println!("Calculating {}", update_index);
         // If there is no tile
         // or we've calculated that this tile can move,
         // then movement is allowed
@@ -96,9 +148,8 @@ impl Chunk {
             return MoveInfo::Unknown;
         }
 
-        // If we've alredy checked this tile
-        // or another tile is going to move here
-        // or this tile's behaviour is unknown,
+        // If we've alredy checked this tile (implying it can't move)
+        // or another tile is going to move here,
         // then movement is not allowed
         let checked = calculation.checked[update_index];
         calculation.checked[update_index] = true;
@@ -110,10 +161,15 @@ impl Chunk {
         let directions = vec![ivec2(0, -1), ivec2(-1, -1), ivec2(1, -1)];
         for direction in directions {
             // Check if target is inside the current chunk
-            match Self::shift_position(update_index, direction) {
+            match self.shift_position(update_index, direction) {
                 Ok(target_index) => {
                     // Inside the current chunk -> check if movement is possible
-                    match self.start_move(target_index, calculation) {
+                    match self.calculate_tile(
+                        target_index,
+                        calculation,
+                        extra_updates,
+                        dependencies,
+                    ) {
                         MoveInfo::Impossible => (),
                         MoveInfo::Possible => {
                             // Register the move
@@ -130,7 +186,7 @@ impl Chunk {
                             self.need_update[target_index] = true;
 
                             // Update nearby lazy tiles
-                            self.update_tiles_around(update_index, 1, calculation);
+                            self.update_tiles_around(update_index, 1, calculation, extra_updates);
                             return MoveInfo::Possible;
                         }
                         MoveInfo::Unknown => {
@@ -139,16 +195,16 @@ impl Chunk {
                         }
                     }
                 }
-                Err(_) => {
+                Err(tile) => {
                     // Outside of the current chunk -> behaviour is unknown
                     calculation.unknown[update_index] = true;
+                    dependencies.insert(tile, MoveInfo::Unknown);
                     return MoveInfo::Unknown;
                 }
             }
         }
 
         // There are no possible moves
-        calculation.cant_move[update_index] = true;
         // Set this tile into lazy mode
         self.need_update[update_index] = false;
         MoveInfo::Impossible
@@ -158,13 +214,14 @@ impl Chunk {
         &self,
         index: usize,
         distance: i32,
-        calculation: &mut InitialCalculation,
+        calculation: &mut ChunkCalculation,
+        extra_updates: &mut Vec<Tile>,
     ) {
         // Update tiles in a square around a given tile
         for dx in -distance..=distance {
             for dy in -distance..=distance {
                 let shift = ivec2(dx, dy);
-                match Self::shift_position(index, shift) {
+                match self.shift_position(index, shift) {
                     Ok(index) => {
                         // Tile is inside the chunk -> queue update
                         if self.tiles[index]
@@ -175,16 +232,16 @@ impl Chunk {
                             calculation.update_tiles.push(index);
                         }
                     }
-                    Err((chunk_shift, index)) => {
+                    Err(tile) => {
                         // Tile is outside the chunk -> queue global update
-                        calculation.extra_updates.push((chunk_shift, index));
+                        extra_updates.push(tile);
                     }
                 }
             }
         }
     }
 
-    pub fn shift_position(tile_index: usize, shift: IVec2) -> Result<usize, (IVec2, usize)> {
+    pub fn shift_position(&self, tile_index: usize, shift: IVec2) -> Result<usize, Tile> {
         // Translate tile index into a vector
         let position = tile_index_to_position(tile_index) + shift;
 
@@ -206,16 +263,17 @@ impl Chunk {
         };
 
         let tile_position = uvec2(tile_pos_x, tile_pos_y);
+        let index = tile_position_to_index(tile_position);
 
         if chunk_shift_x == 0 && chunk_shift_y == 0 {
             // Inside the chunk
-            Ok(tile_position_to_index(tile_position))
+            Ok(index)
         } else {
             // Outside the chunk
-            Err((
-                ivec2(chunk_shift_x, chunk_shift_y),
-                tile_position_to_index(tile_position),
-            ))
+            Err(Tile {
+                chunk_pos: self.chunk_pos + ivec2(chunk_shift_x, chunk_shift_y),
+                index,
+            })
         }
     }
 
@@ -252,27 +310,19 @@ impl Chunk {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum MoveInfo {
     Impossible,
     Possible,
     Unknown,
 }
 
-pub struct InitialCalculation {
+pub struct ChunkCalculation {
     pub checked: DataArray<bool>,
     pub moves: DataArray<Option<usize>>,
     pub moves_to: DataArray<bool>,
-    pub cant_move: DataArray<bool>,
     pub update_tiles: Vec<usize>,
     pub unknown: DataArray<bool>,
-    pub extra_updates: Vec<(IVec2, usize)>,
     pub view_update: DataArray<Option<bool>>,
-}
-
-pub struct UpdatedCalculation {
-    pub checked: DataArray<bool>,
-    pub moves: DataArray<Option<usize>>,
-    pub moves_to: DataArray<bool>,
-    pub cant_move: DataArray<bool>,
-    pub view_update: DataArray<Option<bool>>,
+    pub cross_moves: DataArray<Option<Tile>>,
 }
